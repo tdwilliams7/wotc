@@ -8,9 +8,10 @@ import { timeRange, toDateStr } from "../lib/dates";
 interface Props {
   events: EventSummary[];
   templates: GameTemplate[];
+  onOpenEvent: (id: string) => void; 
 }
 
-export function EventCalendar({ events, templates }: Props) {
+export function EventCalendar({ events, templates, onOpenEvent }: Props) {
   const [selectedDate, setSelectedDate] = useState(() => toDateStr(new Date()));
 
   const gameName = (id: string) =>
@@ -78,6 +79,7 @@ export function EventCalendar({ events, templates }: Props) {
                     : `${e.capacity - e.registeredCount} spots left`}{" "}
                   ({e.registeredCount}/{e.capacity})
                 </div>
+                <button onClick={() => onOpenEvent(e.id)}>Details</button>
               </li>
             );
           })}
