@@ -10,10 +10,12 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@apollo/client": "^3.14.1",
     "@fullcalendar/core": "6.1.21",
     "@fullcalendar/daygrid": "6.1.21",
     "@fullcalendar/interaction": "6.1.21",
     "@fullcalendar/react": "6.1.21",
+    "graphql": "^16.14.2",
     "ics": "^3.12.0",
     "luxon": "^3.7.2",
     "qrcode.react": "^4.2.0",

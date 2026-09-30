@@ -7,7 +7,6 @@ import { migrate } from "./migrate";
 import { inviteFor } from "./modules/calendar";
 import { CORS_ORIGIN, PORT } from "./config";
 
-// Express owns CORS, so turn off Yoga's own to avoid duplicate headers.
 const yoga = createYoga({ schema, cors: false });
 
 const app = express();
