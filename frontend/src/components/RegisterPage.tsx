@@ -1,23 +1,36 @@
 import { useState, type SubmitEvent } from "react";
 import { Link } from "react-router-dom";
-import type { EventSummary } from "../types";
-import type { RegisterResult } from "../lib/registration";
 import { timeRange } from "../lib/dates";
+
+import type { EventSummary, RegisterResult } from "../types";
 
 interface Props {
   event: EventSummary;
-  onRegister: (eventId: string, name: string) => RegisterResult;
+  onRegister: (eventId: string, name: string) => Promise<RegisterResult>;
 }
 
 export function RegisterPage({ event, onRegister }: Props) {
   const [name, setName] = useState("");
   const [result, setResult] = useState<RegisterResult | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
-  function handleSubmit(ev: SubmitEvent) {
+
+  async function handleSubmit(ev: SubmitEvent) {
     ev.preventDefault();
-    const r = onRegister(event.id, name);
-    setResult(r);
-    if (r.ok) setName("");
+    setSubmitting(true);
+    try {
+      const r = await onRegister(event.id, name);
+      setResult(r);
+      if (r.ok) setName("");
+    } catch {
+      setResult({
+        ok: false,
+        code: "NOT_FOUND",
+        message: "Something went wrong. Please try again.",
+      });
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   const spotsLeft = Math.max(event.capacity - event.registeredCount, 0);
@@ -48,7 +61,9 @@ export function RegisterPage({ event, onRegister }: Props) {
         </label>
         {/* Deliberately not disabled when full: the handler is the authority and
             a stale page must get a clear rejection, same as it will from the server. */}
-        <button type="submit">Register</button>
+        <button type="submit" disabled={submitting}>
+          Register
+        </button>
       </form>
 
       {result?.ok && <p role="status">You're registered for {event.name}!</p>}

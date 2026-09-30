@@ -28,3 +28,12 @@ export interface EventSummary {
   capacity: number;
   registeredCount: number;
 }
+
+export type RegisterErrorCode =
+  | "NOT_FOUND"
+  | "INVALID_NAME"
+  | "DUPLICATE"
+  | "EVENT_FULL";
+export type RegisterResult =
+  | { ok: true }
+  | { ok: false; code: RegisterErrorCode; message: string };

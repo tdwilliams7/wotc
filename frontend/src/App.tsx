@@ -1,18 +1,21 @@
-import { useState } from "react";
+import { useMutation, useQuery } from "@apollo/client";
 import { Routes, Route, Link, useNavigate, useParams } from "react-router-dom";
 import { EventForm } from "./components/EventForm";
 import { EventCalendar } from "./components/EventCalendar";
 import { EventDetail } from "./components/EventDetail";
 import { RegisterPage } from "./components/RegisterPage";
-// import { TemplateForm } from "./components/TemplateForm";
-import { mockTemplates } from "./mocks/templates";
-import { mockEvents } from "./mocks/events";
-import type { CreateEventInput, EventSummary, GameTemplate } from "./types";
+import type {
+  CreateEventInput,
+  EventSummary,
+  GameTemplate,
+  RegisterResult,
+} from "./types";
 import {
-  normalizeName,
-  type RegisterResult,
-  validateRegistration,
-} from "./lib/registration";
+  CREATE_EVENT,
+  EVENTS_QUERY,
+  REGISTER,
+  TEMPLATES_QUERY,
+} from "./graphql/operations";
 
 function NotFound() {
   return (
@@ -45,7 +48,7 @@ function RegisterRoute({
   onRegister,
 }: {
   events: EventSummary[];
-  onRegister: (eventId: string, name: string) => RegisterResult;
+  onRegister: (eventId: string, name: string) => Promise<RegisterResult>;
 }) {
   const { id } = useParams();
   const event = events.find((e) => e.id === id);
@@ -55,54 +58,50 @@ function RegisterRoute({
 
 export default function App() {
   const navigate = useNavigate();
-  const [events, setEvents] = useState<EventSummary[]>(mockEvents);
-  const [templates, setTemplates] = useState<GameTemplate[]>(mockTemplates);
-  // eventId -> normalized names. Stand-in for the registrations table.
-  const [registrations, setRegistrations] = useState<Record<string, string[]>>(
-    {},
-  );
+  const tplQuery = useQuery<{ templates: GameTemplate[] }>(TEMPLATES_QUERY);
+  // cache-and-network: show cached data instantly but always refresh, so spots-left is current.
+  const evQuery = useQuery<{ events: EventSummary[] }>(EVENTS_QUERY, {
+    fetchPolicy: "cache-and-network",
+  });
+  const [createEventMutation] = useMutation(CREATE_EVENT);
+  const [registerMutation] = useMutation(REGISTER);
 
-  // Temporary: stands in for the createEvent mutation.
-  function handleCreate(input: CreateEventInput) {
-    setEvents((prev) => [
-      ...prev,
-      {
-        id: crypto.randomUUID(),
-        name: input.name,
-        gameId: input.gameId,
-        format: input.format,
-        startsAt: `${input.startDate}T${input.startTime}`,
-        durationMinutes: input.durationMinutes,
-        capacity: input.capacity,
-        registeredCount: 0,
-      },
-    ]);
+  const templates = tplQuery.data?.templates;
+  const events = evQuery.data?.events;
+
+  // Throws on failure so the form can show the server's message.
+  async function handleCreate(input: CreateEventInput) {
+    await createEventMutation({
+      variables: { input },
+      refetchQueries: [{ query: EVENTS_QUERY }],
+      awaitRefetchQueries: true,
+    });
     navigate("/");
   }
 
+  // Full/duplicate come back as typed data (RegisterError), not exceptions.
+  async function handleRegister(
+    eventId: string,
+    name: string,
+  ): Promise<RegisterResult> {
+    const { data } = await registerMutation({ variables: { eventId, name } });
+    const r = data.register;
+    return r.__typename === "RegisterSuccess"
+      ? { ok: true }
+      : { ok: false, code: r.code, message: r.message };
+  }
 
-  // Temporary: stands in for the register mutation. All rules live in validateRegistration.
-  function handleRegister(eventId: string, name: string): RegisterResult {
-    const event = events.find((e) => e.id === eventId);
-    const result = validateRegistration(
-      event,
-      registrations[eventId] ?? [],
-      name,
-    );
-    if (result.ok) {
-      setRegistrations((prev) => ({
-        ...prev,
-        [eventId]: [...(prev[eventId] ?? []), normalizeName(name)],
-      }));
-      setEvents((prev) =>
-        prev.map((e) =>
-          e.id === eventId
-            ? { ...e, registeredCount: e.registeredCount + 1 }
-            : e,
-        ),
+  const error = tplQuery.error ?? evQuery.error;
+  if (!templates || !events) {
+    if (error) {
+      return (
+        <main style={{ padding: 24 }}>
+          <p role="alert">Couldn't reach the API: {error.message}</p>
+          <p>Is the backend running?</p>
+        </main>
       );
     }
-    return result;
+    return <main style={{ padding: 24 }}>Loading…</main>;
   }
 
   return (

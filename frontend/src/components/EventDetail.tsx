@@ -2,8 +2,7 @@ import { Link } from "react-router-dom";
 import { QRCodeSVG } from "qrcode.react";
 import type { EventSummary, GameTemplate } from "../types";
 import { timeRange } from "../lib/dates";
-import { downloadIcs } from "../lib/ics";
-import { registrationPath, registrationUrl } from "../lib/config";
+import { inviteUrl, registrationPath, registrationUrl } from "../lib/config";
 
 interface Props {
   event: EventSummary;
@@ -29,15 +28,11 @@ export function EventDetail({ event, template }: Props) {
         {full ? "Full" : `${event.capacity - event.registeredCount} spots left`}{" "}
         ({event.registeredCount}/{event.capacity})
       </div>
-      <button
-        onClick={() => downloadIcs(event, template)}
-        style={{ justifySelf: "start" }}
-      >
+      <a href={inviteUrl(event.id)} style={{ justifySelf: "start" }}>
         Add to calendar (.ics)
-      </button>
+      </a>
 
       <h3>Register</h3>
-      {/* White backing keeps the code scannable in dark mode */}
       <div
         style={{
           background: "#fff",

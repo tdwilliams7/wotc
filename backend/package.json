@@ -8,7 +8,8 @@
     "migrate": "tsx src/migrate.ts",
     "seed": "tsx src/seed.ts",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "start": "tsx src/index.ts"
   },
   "keywords": [],
   "author": "",

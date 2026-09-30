@@ -45,10 +45,7 @@ export function EventCalendar({ events, templates, onOpenEvent }: Props) {
         selectable
         unselectAuto={false} // keep the day highlighted when clicking the agenda
         select={(info) => setSelectedDate(info.startStr)}
-        eventClick={(info) => {
-          const clicked = events.find((e) => e.id === info.event.id);
-          if (clicked) setSelectedDate(clicked.startsAt.slice(0, 10));
-        }}
+        eventClick={(info) => onOpenEvent(info.event.id)}
         height="auto"
         displayEventEnd
       />
