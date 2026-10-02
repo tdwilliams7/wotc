@@ -142,5 +142,6 @@ I used Claude throughout, as a pair-programmer and reviewer: scaffolding the Rea
 - **FullCalendar versions.** The install command Claude gave me pulled `@fullcalendar/react` v7 while the plugins were on v6. That caused a type error and then "Class constructor DayTableView cannot be invoked without 'new'". I diagnosed it with `npm ls` (two copies of `@fullcalendar/core`) and pinned all four packages to 6.1.21.
 - **Scope creep.** Claude generated a game-template admin form. I removed it because the brief lists admin dashboards as out of scope. Template extensibility is covered by the registry and seed instead.
 - **Code that referenced something that didn't exist.** A later config change called a `requireUrl` helper that was never in my file, which broke the Docker build. I added the missing helper.
+- **Routing.** The main example of AI output I rejected was the initial routing implementation I identified where it didn’t match the application flow I had designed, fixed it myself, and then continued using claude code from the corrected state. (Hard-coded view array (home, calendar, event, types))
 
 
