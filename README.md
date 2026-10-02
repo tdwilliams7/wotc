@@ -144,4 +144,13 @@ I used Claude throughout, as a pair-programmer and reviewer: scaffolding the Rea
 - **Code that referenced something that didn't exist.** A later config change called a `requireUrl` helper that was never in my file, which broke the Docker build. I added the missing helper.
 - **Routing.** The main example of AI output I rejected was the initial routing implementation I identified where it didn’t match the application flow I had designed, fixed it myself, and then continued using claude code from the corrected state. (Hard-coded view array (home, calendar, event, types))
 
+### Screenshots
+Desktop
+<img width="518" height="578" alt="Screenshot 2026-10-01 at 7 59 59 PM" src="https://github.com/user-attachments/assets/df3ee00d-8cbc-4b34-91fa-58c1a9893a02" />
+<img width="518" height="429" alt="Screenshot 2026-10-01 at 7 59 51 PM" src="https://github.com/user-attachments/assets/8baf5964-d28d-4ab3-9e49-426db87ae258" />
+<img width="826" height="628" alt="Screenshot 2026-10-01 at 7 59 44 PM" src="https://github.com/user-attachments/assets/51300574-6aca-42c1-8f3c-c33aa6fe4368" />
+<img width="507" height="313" alt="Screenshot 2026-10-01 at 8 00 05 PM" src="https://github.com/user-attachments/assets/c0e9ede9-9387-4a4a-8e13-b8549bcd4ae1" />
+Mobile (cloudflare tunnel)
+<img width="590" height="1278" alt="IMG_0112" src="https://github.com/user-attachments/assets/ee5b6d13-0b18-4af4-abce-33991b3931ce" />
+<img width="590" height="1278" alt="IMG_0113" src="https://github.com/user-attachments/assets/7bbfbec0-b936-4ad8-8be5-227551297f78" />
 
