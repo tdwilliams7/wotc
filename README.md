@@ -1,4 +1,4 @@
-#### Wotc Event Scheduler
+# Wotc Event Scheduler
 
 ## Run it
 ```bash
@@ -10,19 +10,23 @@ Requires Docker. For local dev without Docker, use Node 22 (`.nvmrc`):
 `docker compose up -d db`, then `npm run seed && npm run dev` in `backend/` and `npm run dev` in `frontend/`.
 Tests: `docker compose up -d db && cd backend && npm test`.
 
-If network issues prevent the application from loading on phone:
-```
+**Testing the QR from a phone** 
+(optional; some networks block device-to-device traffic):
+```bash
 cloudflared tunnel --url http://localhost:5173
 ```
-will host the localhost on ```https://<something>.trycloudflare.com``` url will be in terminal message.
+Open the printed `https://<something>.trycloudflare.com` URL **on your computer**, go to an event page, and scan the QR from your phone. The QR uses the address the page was opened on.
+
+**Run notes.** Postgres is exposed on host port 5433 to avoid clashing with a local install. Seed events are dated early October 2026, so use the calendar's navigation if you're viewing later. Local dev and tests need Node 22+.
 
 ### Design
 
-#### Frontend Plan
+#### Frontend
 
 React + TypeScript (Vite), Apollo Client for GraphQL, FullCalendar for the month grid, React Router for pages.
 Every screen has a real URL, so the QR code and invite link work when opened on another device.
 | Route | Purpose |
+| -- | -- |
 | `/events/new` | Create event |
 | `/` | Calendar |
 | `/events/:id` | Event details |
@@ -39,7 +43,8 @@ Every screen has a real URL, so the QR code and invite link work when opened on 
 
 **Event page (`/events/:id`)**
 - Event details, spots left, a downloadable `.ics` invite, and a QR code that encodes the registration link.
-- The registration URL is built from `VITE_PUBLIC_URL`, not `window.location`, so the QR works when scanned from a phone.
+- The QR encodes the registration URL, built from the origin the page was opened on (`VITE_PUBLIC_URL` overrides it if set). Open the app at the address a phone can reach, such as a tunnel URL, before scanning.
+
 **Registration page (`/events/:id/register`)**
 - Shows event name, date, time, and spots left, plus a name field.
 - Clear messages for full and duplicate registrations, sourced from the server's typed error codes.
@@ -58,28 +63,14 @@ It's a modular monolith with service-shaped boundaries:
 
 The invite is a plain HTTP route (`GET /events/:id/invite.ics`) rather than GraphQL because it's a file download that has to work as a link from anywhere.
 
-## Out of scope / next steps
+**Same origin in Docker.** nginx serves the app and proxies `/graphql` and the invite route to the API, so the browser sees one origin: no CORS, and nothing baked in at build time.
 
-**Cut because the exercise excluded it**
-- **Admin dashboard for game templates.** Templates are seeded data. See "Adding a 4th game" above for what a self-serve flow would need (a `createTemplate` mutation, a form, authorization, and archive semantics).
-- **Email confirmation and a reminder 3 days before the event.**
-- **Cancelling a registration** (for example via a link in the confirmation email).
-- **Editing or cancelling events, and a waitlist.**
-- **Auth.** There is one implicit organizer, and `/events/new` is open to anyone with the URL.
+**Invites and time zones.** Events are stored as `timestamptz`. Inputs and outputs are store-local strings (`YYYY-MM-DDTHH:mm`), converted with luxon using one configured store time zone. The `.ics` is built with the `ics` library from UTC values, so it imports correctly regardless of the viewer's zone, and its UID is stable so re-importing updates the entry. Verified by importing into Google Calendar / Apple Calendar.
 
-**Known gaps**
-- **Stronger duplicate prevention.** Duplicates are detected by normalized name only, so two different people named "Sam Lee" collide. Next step is registering with an email or phone number, or real auth.
-- **Abuse protection.** Anonymous, name-only registration means anyone with the link can fill an event with fake names. Next steps are rate limiting and verified contact details.
-- **Past events.** Registration and event creation aren't blocked for past dates, and the seed uses fixed dates. Next step: reject registration after the event starts (a new `EVENT_STARTED` code, checked inside the locked transaction) and reject past start times in `createEvent`.
-- **Minimum players.** `minPlayers` only sets a capacity floor. Under-filled events aren't flagged or cancelled.
-- **Time zone.** Events use a single store time zone configured server-side. The `.ics` uses UTC times with no `VTIMEZONE` block.
-- **Scale.** The `events` query has no pagination or date-range filter.
-- **Operations.** The container runs the idempotent seed on every start (production would separate migrations from seeding). Unexpected errors surface as generic GraphQL errors with no structured logging.
-- **Testing.** The tests cover the backend, including the concurrency cases. There are no frontend tests. The QR flow was verified end to end by scanning the code from a phone over cellular through a Cloudflare tunnel (```cloudflared tunnel --url http://localhost:5173```), registering a name, and seeing the count update on the desktop.
 
 ### How capacity is determined and enforced
 
-**Where it comes from.** Each game template supplies a default capacity and a maximum. An organizer can override the default when creating an event, within the template's max and never above 30 (the exercises' limit). Capacity is stored as a column on `events`. `registeredCount` is not stored: it's computed from the `registrations` table, so it can't drift.
+**Where it comes from.** Each game template supplies a default capacity and a maximum. An organizer can override the default when creating an event, within the template's max and never above 30 (the exercise's limit). Capacity is stored as a column on `events`. `registeredCount` is not stored: it's computed from the `registrations` table, so it can't drift.
 
 **Enforcement in three layers**
 1. **Database constraints** guarantee the global bounds: `CHECK (capacity BETWEEN 1 AND 30)` on events, and `min_players <= default_capacity <= max_capacity <= 30` on templates.
@@ -112,6 +103,9 @@ A game template is a plain data record: `id`, `name`, `formats[]`, `defaultDurat
 No code checks game names. The server reads the template, and the frontend fetches templates over GraphQL and builds the create form from them. Capacity and duration are copied onto the event at creation, so changing a template later doesn't alter existing events.
 
 **Adding a 4th game.** 
+
+Today this is a developer task: add one entry to the registry in `modules/templates/data.ts` and re-seed (`docker compose up --build`, since the container seeds on start). No event, registration, or event-form code changes. The seed overwrites existing rows and never deletes them, because events reference them by foreign key.
+
 A self-serve flow is the admin dashboard I scoped out, and it would need:
 - A `createTemplate` mutation. The server would generate the id (a slug of the name), enforce the same invariant the database already checks (`min_players <= default_capacity <= max_capacity <= 30`), and reject duplicate names.
 - A template form: name, formats, default duration, default and max capacity, minimum players. The event form needs no changes, because it already builds itself from the templates query.
@@ -120,14 +114,31 @@ A self-serve flow is the admin dashboard I scoped out, and it would need:
 
 **A non-card game** works the same way if it fits these fields (a board game night or a tournament, for example). If it doesn't, such as teams, brackets, or per-round timing, the options are new template columns or a JSONB `config` column for game-specific extras. The JSONB route is more flexible but gives up database-level constraints on those fields. Either way, registration logic is untouched.
 
+## Out of scope / next steps
+
+**Cut because the exercise excluded it**
+- **Admin dashboard for game templates.** Templates are seeded data. See "Adding a 4th game" above for what a self-serve flow would need (a `createTemplate` mutation, a form, authorization, and archive semantics).
+- **Email confirmation and a reminder 3 days before the event.**
+- **Cancelling a registration** (for example via a link in the confirmation email).
+- **Editing or cancelling events, and a waitlist.**
+- **Auth.** There is one implicit organizer, and `/events/new` is open to anyone with the URL.
+
+**Known gaps**
+- **Stronger duplicate prevention.** Duplicates are detected by normalized name only, so two different people named "Sam Lee" collide. Next step is registering with an email or phone number, or real auth.
+- **Abuse protection.** Anonymous, name-only registration means anyone with the link can fill an event with fake names. Next steps are rate limiting and verified contact details.
+- **Past events.** Registration and event creation aren't blocked for past dates, and the seed uses fixed dates. Next step: reject registration after the event starts (a new `EVENT_STARTED` code, checked inside the locked transaction) and reject past start times in `createEvent`.
+- **Minimum players.** `minPlayers` only sets a capacity floor. Under-filled events aren't flagged or cancelled.
+- **Time zone.** Events use a single store time zone configured server-side. The `.ics` uses UTC times with no `VTIMEZONE` block.
+- **Scale.** The `events` query has no pagination or date-range filter.
+- **Operations.** The container runs the idempotent seed on every start (production would separate migrations from seeding). Unexpected errors surface as generic GraphQL errors with no structured logging.
+- **Testing.** The tests cover the backend, including the concurrency cases. There are no frontend tests. 
 
 ## AI usage note
 
-I used Claude throughout, as a pair-programmer and reviewer: scaffolding the React components, the Postgres schema, the GraphQL layer, and the transactional `register` function, and debugging setup problems. I used claude code to generate code after first creating the overall design plan myself, including the frameworks and architecture I wanted to use. I uploaded that plan and had claude code implement the frontend incrementally, starting with event creation and the main event views before moving on to registration. I ran into some routing issues where the generated implementation wasn’t working the way I intended, so I corrected the routing myself, sent the updated changes back to claude code, and had it continue from there.
+I used Claude throughout, as a pair-programmer and reviewer: scaffolding the React components, the Postgres schema, the GraphQL layer, and the transactional `register` function, and debugging setup problems. I used claude code to generate code after first creating the overall design plan myself, including the frameworks and architecture I wanted to use. I uploaded that plan and had claude code implement the frontend incrementally, starting with event creation and the main event views before moving on to registration. 
  I wrote down the design answers in this README myself against the code as built. The things I verified myself: the concurrency tests against real Postgres, the full flow through Docker, and the QR flow from a phone through a Cloudflare tunnel.
 
 **Output I had to fix or reject:**
-- **Routing.** The main example of AI output I rejected was the initial routing implementation I identified where it didn’t match the application flow I had designed, fixed it myself, and then continued using claude code from the corrected state. (Hard-coded view array (home, calendar, event, types))
 - **FullCalendar versions.** The install command Claude gave me pulled `@fullcalendar/react` v7 while the plugins were on v6. That caused a type error and then "Class constructor DayTableView cannot be invoked without 'new'". I diagnosed it with `npm ls` (two copies of `@fullcalendar/core`) and pinned all four packages to 6.1.21.
 - **Scope creep.** Claude generated a game-template admin form. I removed it because the brief lists admin dashboards as out of scope. Template extensibility is covered by the registry and seed instead.
 - **Code that referenced something that didn't exist.** A later config change called a `requireUrl` helper that was never in my file, which broke the Docker build. I added the missing helper.

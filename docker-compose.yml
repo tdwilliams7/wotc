@@ -18,6 +18,7 @@ services:
     environment:
       # Inside the compose network the DB is "db" on its internal port 5432
       DATABASE_URL: postgres://events:events@db:5432/events
+      # Only needed when frontend and backend are on different origins
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5173}
     ports: ["4000:4000"]
     depends_on:
