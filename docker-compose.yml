@@ -9,7 +9,7 @@ services:
     ports: ["5433:5432"]
     volumes: [dbdata:/var/lib/postgresql/data]
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U events"]
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U events -d events"]
       interval: 3s
       retries: 10
 
@@ -23,13 +23,14 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    restart: on-failure
 
   frontend:
     build:
       context: ./frontend
-      args:
-        VITE_API_URL: ${VITE_API_URL:-http://localhost:4000}
-        VITE_PUBLIC_URL: ${VITE_PUBLIC_URL:-http://localhost:5173}
+      # args:
+      #   VITE_API_URL: ${VITE_API_URL:-http://localhost:4000}
+      #   VITE_PUBLIC_URL: ${VITE_PUBLIC_URL:-http://localhost:5173}
     ports: ["5173:80"]
     depends_on: [backend]
 

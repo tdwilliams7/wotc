@@ -4,9 +4,9 @@ COPY package*.json ./
 RUN npm ci
 COPY . .
 # Vite bakes these in at build time. They must be URLs the BROWSER can reach.
-ARG VITE_API_URL
-ARG VITE_PUBLIC_URL
-ENV VITE_API_URL=$VITE_API_URL VITE_PUBLIC_URL=$VITE_PUBLIC_URL
+# ARG VITE_API_URL
+# ARG VITE_PUBLIC_URL
+# ENV VITE_API_URL=$VITE_API_URL VITE_PUBLIC_URL=$VITE_PUBLIC_URL
 RUN npm run build
 
 FROM nginx:alpine
